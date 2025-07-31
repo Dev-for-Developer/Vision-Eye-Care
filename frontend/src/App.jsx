@@ -1,32 +1,17 @@
-import { useEffect, useState } from 'react';
-import './App.css';
-import './output.css';
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
+import VisionCheck from './pages/VisionCheck'
+import VisionTest from './pages/VisionTest'
+import ReportPage from './pages/ReportPage'
 
-function App() {
-  const [status, setStatus] = useState('Loading...');
-
-  useEffect(() => {
-    fetch('/api/vision/')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setStatus(`Backend Status: ${data.status}`);
-      })
-      .catch((err) => {
-        setStatus(`Backend Status: Error: ${err.message}`);
-      });
-  }, []);
-
+export default function App() {
   return (
-    <div className="App text-center p-10">
-      <h1 className="text-3xl font-bold mb-4">Virtual Eye Test</h1>
-      <p className="text-lg">{status}</p>
-    </div>
-  );
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/vision-check" element={<VisionCheck />} />
+      <Route path="/test" element={<VisionTest />} />
+      <Route path="/report" element={<ReportPage />} />
+    </Routes>
+  )
 }
-
-export default App;
