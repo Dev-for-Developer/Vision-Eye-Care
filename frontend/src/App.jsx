@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import './output.css';
 
 function App() {
   const [status, setStatus] = useState('Loading...');
 
   useEffect(() => {
-    fetch('/api/vision')
+    fetch('/api/vision/')
       .then((res) => {
         if (!res.ok) {
           throw new Error('Network response was not ok');
@@ -21,9 +22,9 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <h1>Virtual Eye Test</h1>
-      <p>{status}</p>
+    <div className="App text-center p-10">
+      <h1 className="text-3xl font-bold mb-4">Virtual Eye Test</h1>
+      <p className="text-lg">{status}</p>
     </div>
   );
 }
