@@ -1,12 +1,8 @@
 from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
+from django.urls import path
+from api import views  # Import from your app
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('your_app_name.urls')),  # replace 'your_app_name' with your app's folder name
+    path('api/vision/', views.simulate_vision, name='simulate_vision'),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
