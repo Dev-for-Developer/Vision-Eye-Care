@@ -1,19 +1,29 @@
-import React from 'react';
+import React from "react";
 
-export default function ZoomControl({ zoomLevel, setZoomLevel }) {
+const ZoomControl = ({ zoomLevel, setZoomLevel }) => {
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+
   return (
-    <div className="flex flex-col items-center my-4">
-      <label className="mb-2 font-semibold">Zoom Chart</label>
-      <input
-        type="range"
-        min="0.5"
-        max="2"
-        step="0.1"
-        value={zoomLevel}
-        onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-        className="w-48"
-      />
-      <span className="mt-2 text-sm">Zoom: {zoomLevel}x</span>
+    <div>
+      <h2 className="text-lg font-semibold text-blue-700 mb-2">Zoom Control</h2>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleZoomOut}
+          className="px-4 py-2 bg-red-100 text-red-700 rounded-lg shadow hover:bg-red-200"
+        >
+          -
+        </button>
+        <span className="text-lg font-medium">{zoomLevel.toFixed(1)}x</span>
+        <button
+          onClick={handleZoomIn}
+          className="px-4 py-2 bg-green-100 text-green-700 rounded-lg shadow hover:bg-green-200"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
-}
+};
+
+export default ZoomControl;

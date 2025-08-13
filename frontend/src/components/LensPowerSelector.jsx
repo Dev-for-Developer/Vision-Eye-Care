@@ -1,19 +1,27 @@
-import React from 'react';
+import React from "react";
 
-export default function LensPowerSelector({ selectedPower, setSelectedPower }) {
+const LensPowerSelector = ({ lensPower, setLensPower }) => {
+  const handlePowerChange = (e) => {
+    setLensPower(parseFloat(e.target.value));
+  };
+
   return (
-    <div className="flex flex-col items-center my-4">
-      <label className="mb-2 font-semibold">Lens Power (Diopters)</label>
+    <div>
+      <h2 className="text-lg font-semibold text-blue-700 mb-2">Lens Power</h2>
       <input
         type="range"
-        min="-10"
-        max="10"
-        step="0.25"
-        value={selectedPower}
-        onChange={(e) => setSelectedPower(parseFloat(e.target.value))}
-        className="w-64"
+        min={-6}
+        max={6}
+        step={0.25}
+        value={lensPower}
+        onChange={handlePowerChange}
+        className="w-full accent-blue-600"
       />
-      <span className="mt-2 text-sm">{selectedPower >= 0 ? '+' : ''}{selectedPower} D</span>
+      <p className="text-center mt-2 font-medium text-blue-800">
+        {lensPower.toFixed(2)} D
+      </p>
     </div>
   );
-}
+};
+
+export default LensPowerSelector;

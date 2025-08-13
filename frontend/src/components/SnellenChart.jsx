@@ -1,19 +1,22 @@
-import React from 'react';
+import React from "react";
 
-export default function SnellenChart({ zoomLevel }) {
+const SnellenChart = ({ zoomLevel }) => {
+  const zoomStyles = {
+    transform: `scale(${zoomLevel})`,
+    transformOrigin: "top center",
+    transition: "transform 0.3s ease-in-out",
+  };
+
   return (
-    <div className="flex justify-center">
-      <div
-        className="transition-transform duration-300"
-        style={{ transform: `scale(${zoomLevel})` }}
-      >
-        <img
-          src="/snellenchart.png"
-          alt="Snellen Eye Chart"
-          className="w-full max-w-md mx-auto mt-4"
-        />
-
-      </div>
+    <div className="w-full overflow-hidden">
+      <img
+        src="/snellenchart.png"
+        alt="Snellen Eye Chart"
+        style={zoomStyles}
+        className="mx-auto max-h-[80vh] object-contain"
+      />
     </div>
   );
-}
+};
+
+export default SnellenChart;
