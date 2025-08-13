@@ -1,49 +1,69 @@
 import React, { useState } from "react";
-import SnellenChart from "../component/SnellenChart";
-import ZoomControl from "../component/ZoomControl";
-import LensPowerSelector from "../component/LensPowerSelector";
 
-const VisionTest = () => {
-  const [zoomLevel, setZoomLevel] = useState(1);
+export default function VisionTest() {
   const [lensPower, setLensPower] = useState(0);
+  const [blurLevel, setBlurLevel] = useState(0);
+
+  // Placeholder function for lens simulation
+  const simulateVision = (power) => {
+    // In Phase 2, we will replace this with actual optical simulation
+    // For now: higher difference from 0 => more blur
+    return Math.abs(power) * 1.5; // Adjust multiplier for effect
+  };
+
+  const handleLensChange = (e) => {
+    const value = parseFloat(e.target.value);
+    setLensPower(value);
+    setBlurLevel(simulateVision(value));
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-blue-50 p-6 md:p-12">
-      <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-2xl p-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-blue-800 mb-6">
-          Virtual Vision Test
-        </h1>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6">
+      <h1 className="text-3xl font-bold mb-6">Virtual Eye Vision Test</h1>
 
-        {/* Main Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Snellen Chart */}
-          <div className="flex flex-col items-center bg-gray-50 rounded-xl p-6 shadow-md">
-            <SnellenChart zoomLevel={zoomLevel} />
-          </div>
-
-          {/* Controls */}
-          <div className="flex flex-col gap-6 justify-between">
-            <div className="bg-blue-50 p-4 rounded-xl shadow-md">
-              <ZoomControl zoomLevel={zoomLevel} setZoomLevel={setZoomLevel} />
-            </div>
-
-            <div className="bg-blue-50 p-4 rounded-xl shadow-md">
-              <LensPowerSelector
-                lensPower={lensPower}
-                setLensPower={setLensPower}
-              />
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mt-2">
-                Adjust the zoom level and lens power until the chart is clearest to you.
-              </p>
-            </div>
-          </div>
+      {/* Snellen Chart */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 w-full max-w-lg">
+        <h2 className="text-xl font-semibold mb-4">Snellen Chart</h2>
+        <div className="flex flex-col items-center space-y-4">
+          {[
+            "E",
+            "F P",
+            "T O Z",
+            "L P E D",
+            "P E C F D",
+            "E D F C Z P",
+            "F E L O P Z D"
+          ].map((line, index) => (
+            <p
+              key={index}
+              className="font-bold"
+              style={{
+                fontSize: `${48 - index * 5}px`,
+                filter: `blur(${blurLevel}px)`
+              }}
+            >
+              {line}
+            </p>
+          ))}
         </div>
+      </div>
+
+      {/* Lens Power Selector */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg w-full max-w-lg">
+        <h2 className="text-xl font-semibold mb-4">Adjust Lens Power</h2>
+        <input
+          type="range"
+          min="-5"
+          max="5"
+          step="0.25"
+          value={lensPower}
+          onChange={handleLensChange}
+          className="w-full accent-blue-500"
+        />
+        <p className="mt-2 text-lg">
+          Selected Power: <span className="font-bold">{lensPower} D</span>
+        </p>
       </div>
     </div>
   );
-};
-
-export default VisionTest;
+}
