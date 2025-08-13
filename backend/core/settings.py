@@ -125,3 +125,43 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+
+
+# core/settings.py
+
+# Add your app to INSTALLED_APPS
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+
+    # Your apps
+    'vision',  # <-- Add this
+]
+
+# Allow React frontend to access Django API
+CORS_ALLOW_ALL_ORIGINS = True  # For development only; restrict in production
+
+INSTALLED_APPS += ['corsheaders']  # Add corsheaders app
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be at the top
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+# Static files settings (optional, but good for deployment later)
+STATIC_URL = '/static/'
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"  # or os.path.join(BASE_DIR, "media")

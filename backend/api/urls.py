@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import status_view
+from . import views
 
 urlpatterns = [
-    path('vision/', status_view),  # This will respond at /api/vision/
+    path('simulate/', views.upload_image_and_simulate, name='upload_image_and_simulate'),
 ]
