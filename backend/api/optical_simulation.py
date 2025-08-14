@@ -22,8 +22,7 @@ def simulate_vision(image_path, refractive_error=0.0):
         img_array = np.array(img)
 
         # Determine blur based on refractive error
-        # You can later replace this mapping with wavelength-aware PSF or ray tracing
-        sigma = abs(refractive_error) * 2.0  # scaling factor for blur
+        sigma = abs(refractive_error) * 2.0  # scale factor for blur
         simulated_array = apply_gaussian_blur(img_array, sigma)
 
         # Convert back to image
