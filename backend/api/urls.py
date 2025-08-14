@@ -1,6 +1,7 @@
+# backend/api/urls.py
 from django.urls import path
-from . import views
+from .views import simulate_view
 
 urlpatterns = [
-    path('simulate/', views.upload_image_and_simulate, name='upload_image_and_simulate'),
+    path("simulate/", simulate_view, name="simulate"),
 ]
