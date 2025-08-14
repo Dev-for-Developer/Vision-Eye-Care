@@ -1,25 +1,21 @@
+// src/components/LensPowerSelector.jsx
 import React from "react";
 
-const LensPowerSelector = ({ lensPower, setLensPower }) => {
-  const handlePowerChange = (e) => {
-    setLensPower(parseFloat(e.target.value));
-  };
-
+const LensPowerSelector = ({ value, onChange }) => {
   return (
-    <div>
-      <h2 className="text-lg font-semibold text-blue-700 mb-2">Lens Power</h2>
+    <div className="flex flex-col items-start space-y-2">
+      <label className="font-semibold">
+        Lens Power (Diopters): {value}
+      </label>
       <input
         type="range"
-        min={-6}
-        max={6}
-        step={0.25}
-        value={lensPower}
-        onChange={handlePowerChange}
-        className="w-full accent-blue-600"
+        min="-5"
+        max="5"
+        step="0.25"
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-64"
       />
-      <p className="text-center mt-2 font-medium text-blue-800">
-        {lensPower.toFixed(2)} D
-      </p>
     </div>
   );
 };

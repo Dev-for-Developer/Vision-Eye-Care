@@ -1,44 +1,41 @@
-import os
-from django.conf import settings
-from django.http import JsonResponse
+# backend/api/views.py
 from django.views.decorators.csrf import csrf_exempt
-from django.core.files.storage import default_storage
-from .optical_simulation import simulate_vision
+from django.http import JsonResponse, HttpRequest
+from PIL import Image
+import json
 
+from .optical_simulation import simulate_retina, pil_to_base64_png
 
 @csrf_exempt
-def vision_simulation_view(request):
-    """
-    Handle POST request for vision simulation.
-    Expects an image and a refractive_error parameter.
-    """
-    if request.method == "POST":
-        try:
-            # Validate input
-            if 'image' not in request.FILES:
-                return JsonResponse({"error": "No image provided"}, status=400)
-            
-            image_file = request.FILES['image']
-            refractive_error = float(request.POST.get("refractive_error", 0.0))
+def simulate_view(request: HttpRequest):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=405)
 
-            # Save uploaded file
-            image_path = default_storage.save(image_file.name, image_file)
-            full_image_path = os.path.join(settings.MEDIA_ROOT, image_path)
+    # Expect multipart/form-data with 'image' and optional numeric fields
+    img_file = request.FILES.get("image")
+    if not img_file:
+        return JsonResponse({"error": "image file is required"}, status=400)
 
-            # Run optical simulation
-            simulated_img = simulate_vision(full_image_path, refractive_error)
+    # Parse numeric params (fallbacks if missing)
+    diopters = float(request.POST.get("diopters", "0"))
+    pupil_mm = float(request.POST.get("pupil_mm", "3"))
+    contrast = float(request.POST.get("contrast", "1.0"))
+    gamma = float(request.POST.get("gamma", "1.0"))
 
-            # Save simulated image
-            simulated_path = f"simulated_{image_file.name}"
-            simulated_full_path = os.path.join(settings.MEDIA_ROOT, simulated_path)
-            simulated_img.save(simulated_full_path)
+    wavelength_nm_raw = request.POST.get("wavelength_nm")
+    wavelength_nm = int(wavelength_nm_raw) if wavelength_nm_raw and wavelength_nm_raw.lower() != "none" else None
 
-            return JsonResponse({
-                "message": "Simulation completed successfully",
-                "simulated_image_url": f"{settings.MEDIA_URL}{simulated_path}"
-            })
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+    try:
+        pil_img = Image.open(img_file)
+        out_img = simulate_retina(
+            pil_img=pil_img,
+            diopters=diopters,
+            pupil_mm=pupil_mm,
+            wavelength_nm=wavelength_nm,
+            contrast=contrast,
+            gamma=gamma,
+        )
+        data_url = pil_to_base64_png(out_img)
+        return JsonResponse({"image": data_url}, status=200)
+    except Exception as e:
+        return JsonResponse({"error": f"{type(e).__name__}: {e}"}, status=500)
