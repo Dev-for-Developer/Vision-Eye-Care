@@ -1,185 +1,226 @@
 // frontend/src/pages/VisionTest.jsx
 import React, { useState } from "react";
 
+const API_BASE = "http://localhost:8000/api"; // adjust if needed
+
 export default function VisionTest() {
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
+  // Original chart is always present (bundled in /public)
+  const originalUrl = "/snellenchart.png";
+
+  // Controls
+  const [defocusD, setDefocusD] = useState(0.0);          // -6..+6
+  const [pupil, setPupil] = useState(3.0);                // 2..7 mm
+  const [pxPerMm, setPxPerMm] = useState(4.0);            // 2..8
+  const [chromatic, setChromatic] = useState("achromatic"); // or "chromatic_rgb"
+  const [contrast, setContrast] = useState(1.0);          // 0.6..1.5
+  const [gamma, setGamma] = useState(1.0);                // 0.8..1.4
+
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const [processedUrl, setProcessedUrl] = useState(null);
+  const [error, setError] = useState("");
 
-  // Scientific controls
-  const [diopters, setDiopters] = useState(0.0);     // -6 to +6
-  const [pupil, setPupil] = useState(3.0);           // 2 to 6 mm
-  const [contrast, setContrast] = useState(1.0);     // 0.5 to 1.2
-  const [gamma, setGamma] = useState(1.0);           // 0.7 to 1.5
-  const [lambdaNm, setLambdaNm] = useState("none");  // "none" or 470/555/610
-
-  const onPick = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-    setResult(null);
-    setErr("");
-    const url = URL.createObjectURL(f);
-    setPreview(url);
-  };
-
-  const runSim = async () => {
-    if (!file) {
-      setErr("Please select an image first.");
-      return;
-    }
+  const runSimulation = async () => {
     setLoading(true);
-    setErr("");
-    setResult(null);
+    setError("");
+    setProcessedUrl(null);
 
     try {
-      const fd = new FormData();
-      fd.append("image", file);
-      fd.append("diopters", String(diopters));
-      fd.append("pupil_mm", String(pupil));
-      fd.append("contrast", String(contrast));
-      fd.append("gamma", String(gamma));
-      fd.append("wavelength_nm", lambdaNm); // "none" or number
-
-      const res = await fetch("http://127.0.0.1:8000/api/simulate/", {
+      const res = await fetch(`${API_BASE}/simulate/`, {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defocus_D: defocusD,
+          pupil_mm: pupil,
+          px_per_mm: pxPerMm,
+          chromatic_mode: chromatic,
+          contrast,
+          gamma,
+        }),
       });
 
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`HTTP ${res.status}: ${txt}`);
+      // Try to parse JSON either way
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response (not JSON).");
       }
-      const data = await res.json();
-      setResult(data.image); // data URL
+
+      if (!res.ok || (data.status && data.status !== "ok")) {
+        throw new Error(data.message || "Server error");
+      }
+
+      // Accept both possible keys from backend: image_base64 OR image
+      const b64 =
+        data.image_base64 ||
+        data.image ||
+        data.processed_base64 ||
+        null;
+
+      if (!b64 || typeof b64 !== "string" || b64.length < 100) {
+        throw new Error("Received empty/invalid image from server.");
+      }
+
+      setProcessedUrl(`data:image/png;base64,${b64}`);
     } catch (e) {
-      setErr(e.message || "Unknown error");
+      setError(e.message || "Simulation failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const sliderCls =
-    "w-full accent-blue-500";
-  const boxCls =
-    "rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 backdrop-blur";
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-6">Virtual Eye Test — Phase 2</h1>
+    <div className="min-h-screen bg-neutral-900 text-neutral-100 px-6 py-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-bold mb-6">Virtual Eye Test — Phase 2</h1>
 
-        {/* Controls */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className={boxCls}>
-            <h2 className="font-semibold mb-3">Upload</h2>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={onPick}
-              className="block w-full text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Use a Snellen chart image or any high-contrast scene.
-            </p>
-          </div>
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Controls */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Optics</h2>
 
-          <div className={boxCls}>
-            <h2 className="font-semibold mb-3">Optics</h2>
-            <label className="text-sm">Defocus (Diopters): {diopters.toFixed(2)} D</label>
-            <input
-              type="range"
-              min={-6}
-              max={6}
-              step={0.25}
-              value={diopters}
-              onChange={(e) => setDiopters(parseFloat(e.target.value))}
-              className={sliderCls}
-            />
-            <label className="text-sm mt-3 block">Pupil Size: {pupil.toFixed(1)} mm</label>
-            <input
-              type="range"
-              min={2}
-              max={6}
-              step={0.1}
-              value={pupil}
-              onChange={(e) => setPupil(parseFloat(e.target.value))}
-              className={sliderCls}
-            />
+            <div>
+              <label className="block text-sm mb-1">
+                Defocus (Diopters): {defocusD.toFixed(2)} D
+              </label>
+              <input
+                type="range"
+                min={-6}
+                max={6}
+                step={0.25}
+                value={defocusD}
+                onChange={(e) => setDefocusD(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
 
-            <label className="text-sm mt-4 block">Chromatic (λ):</label>
-            <select
-              value={lambdaNm}
-              onChange={(e) => setLambdaNm(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1"
-            >
-              <option value="none">Achromatic (RGB)</option>
-              <option value="470">470 nm (Blue)</option>
-              <option value="555">555 nm (Green)</option>
-              <option value="610">610 nm (Red)</option>
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm mb-1">
+                Pupil size: {pupil.toFixed(2)} mm
+              </label>
+              <input
+                type="range"
+                min={2}
+                max={7}
+                step={0.1}
+                value={pupil}
+                onChange={(e) => setPupil(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
 
-          <div className={boxCls}>
-            <h2 className="font-semibold mb-3">Perceptual</h2>
-            <label className="text-sm">Contrast: {contrast.toFixed(2)}×</label>
-            <input
-              type="range"
-              min={0.5}
-              max={1.2}
-              step={0.05}
-              value={contrast}
-              onChange={(e) => setContrast(parseFloat(e.target.value))}
-              className={sliderCls}
-            />
-            <label className="text-sm mt-3 block">Gamma: {gamma.toFixed(2)}</label>
-            <input
-              type="range"
-              min={0.7}
-              max={1.5}
-              step={0.05}
-              value={gamma}
-              onChange={(e) => setGamma(parseFloat(e.target.value))}
-              className={sliderCls}
-            />
+            <div>
+              <label className="block text-sm mb-1">
+                Pixels per mm (screen): {pxPerMm.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={2}
+                max={8}
+                step={0.1}
+                value={pxPerMm}
+                onChange={(e) => setPxPerMm(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1">Chromatic mode</label>
+              <select
+                value={chromatic}
+                onChange={(e) => setChromatic(e.target.value)}
+                className="bg-neutral-800 border border-neutral-700 px-2 py-1 rounded"
+              >
+                <option value="achromatic">Achromatic (RGB together)</option>
+                <option value="chromatic_rgb">Chromatic (R/B split)</option>
+              </select>
+            </div>
+
+            <h2 className="text-xl font-semibold pt-4">Perceptual</h2>
+
+            <div>
+              <label className="block text-sm mb-1">
+                Contrast: {contrast.toFixed(2)}×
+              </label>
+              <input
+                type="range"
+                min={0.6}
+                max={1.5}
+                step={0.05}
+                value={contrast}
+                onChange={(e) => setContrast(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1">
+                Gamma: {gamma.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={0.8}
+                max={1.4}
+                step={0.02}
+                value={gamma}
+                onChange={(e) => setGamma(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
 
             <button
-              onClick={runSim}
-              disabled={loading || !file}
-              className="mt-5 w-full rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5"
+              onClick={runSimulation}
+              disabled={loading}
+              className="mt-2 inline-flex items-center px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
             >
-              {loading ? "Running Simulation…" : "Run Simulation"}
+              {loading ? "Processing…" : "Run Simulation"}
             </button>
-            {err && <p className="text-red-500 text-sm mt-3">{err}</p>}
+
+            {error && (
+              <p className="text-red-400 text-sm mt-2">Error: {error}</p>
+            )}
+          </div>
+
+          {/* Side-by-side images */}
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Original</h3>
+                <div className="aspect-[4/5] bg-neutral-800 rounded overflow-hidden">
+                  <img
+                    src={originalUrl}
+                    alt="Original Snellen Chart"
+                    className="w-full h-full object-contain"
+                    draggable={false}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Processed</h3>
+                <div className="aspect-[4/5] bg-neutral-800 rounded overflow-hidden flex items-center justify-center">
+                  {processedUrl ? (
+                    <img
+                      src={processedUrl}
+                      alt="Processed Simulation"
+                      className="w-full h-full object-contain"
+                      draggable={false}
+                    />
+                  ) : (
+                    <p className="text-neutral-400 text-sm px-3 text-center">
+                      Adjust controls and click <b>Run Simulation</b> to see the
+                      simulated retina image here.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Previews */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className={boxCls}>
-            <h3 className="font-semibold mb-3">Original</h3>
-            <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden">
-              {preview ? (
-                <img src={preview} alt="original" className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-sm text-gray-500">No image selected</span>
-              )}
-            </div>
-          </div>
-
-          <div className={boxCls}>
-            <h3 className="font-semibold mb-3">Simulated Retina</h3>
-            <div className="aspect-video w-full bg-gray-100 dark:bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden">
-              {result ? (
-                <img src={result} alt="result" className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-sm text-gray-500">Run the simulation to see the output</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <p className="text-xs text-neutral-400">
+          Letters are scaled by your device pixels/mm setting to keep geometry coherent.
+        </p>
       </div>
     </div>
   );

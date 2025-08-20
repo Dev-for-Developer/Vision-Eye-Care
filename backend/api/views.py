@@ -1,41 +1,39 @@
 # backend/api/views.py
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse, HttpRequest
-from PIL import Image
 import json
-
-from .optical_simulation import simulate_retina, pil_to_base64_png
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+from .optical_simulation import simulate_chart_to_base64
 
 @csrf_exempt
-def simulate_view(request: HttpRequest):
+def simulate_view(request):
+    """
+    POST JSON with:
+      defocus_D (float), pupil_mm (float), px_per_mm (float),
+      chromatic_mode ("achromatic"|"chromatic_rgb"),
+      contrast (float), gamma (float)
+
+    Returns:
+      { "status": "ok", "image_base64": "..." }
+    """
     if request.method != "POST":
-        return JsonResponse({"error": "POST only"}, status=405)
-
-    # Expect multipart/form-data with 'image' and optional numeric fields
-    img_file = request.FILES.get("image")
-    if not img_file:
-        return JsonResponse({"error": "image file is required"}, status=400)
-
-    # Parse numeric params (fallbacks if missing)
-    diopters = float(request.POST.get("diopters", "0"))
-    pupil_mm = float(request.POST.get("pupil_mm", "3"))
-    contrast = float(request.POST.get("contrast", "1.0"))
-    gamma = float(request.POST.get("gamma", "1.0"))
-
-    wavelength_nm_raw = request.POST.get("wavelength_nm")
-    wavelength_nm = int(wavelength_nm_raw) if wavelength_nm_raw and wavelength_nm_raw.lower() != "none" else None
+        return HttpResponseBadRequest("POST required")
 
     try:
-        pil_img = Image.open(img_file)
-        out_img = simulate_retina(
-            pil_img=pil_img,
-            diopters=diopters,
-            pupil_mm=pupil_mm,
-            wavelength_nm=wavelength_nm,
-            contrast=contrast,
-            gamma=gamma,
-        )
-        data_url = pil_to_base64_png(out_img)
-        return JsonResponse({"image": data_url}, status=200)
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    params = {
+        "defocus_D": float(data.get("defocus_D", 0.0)),
+        "pupil_mm": float(data.get("pupil_mm", 3.0)),
+        "px_per_mm": float(data.get("px_per_mm", 4.0)),
+        "chromatic_mode": str(data.get("chromatic_mode", "achromatic")),
+        "contrast": float(data.get("contrast", 1.0)),
+        "gamma": float(data.get("gamma", 1.0)),
+    }
+
+    try:
+        b64 = simulate_chart_to_base64(**params)
+        return JsonResponse({"status": "ok", "image_base64": b64})
     except Exception as e:
-        return JsonResponse({"error": f"{type(e).__name__}: {e}"}, status=500)
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

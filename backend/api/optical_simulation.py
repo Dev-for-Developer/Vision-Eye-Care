@@ -1,120 +1,115 @@
 # backend/api/optical_simulation.py
+from pathlib import Path
 import io
 import base64
+import math
+from PIL import Image, ImageFilter, ImageOps
 import numpy as np
-from PIL import Image
-import cv2
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def _to_numpy_rgb(pil_img: Image.Image) -> np.ndarray:
-    if pil_img.mode != "RGB":
-        pil_img = pil_img.convert("RGB")
-    return np.array(pil_img)
+# Path to bundled Snellen chart in this app
+ASSET_PATH = Path(__file__).resolve().parent / "assets" / "snellenchart.png"
 
-def _to_pil(img_np: np.ndarray) -> Image.Image:
-    img_np = np.clip(img_np, 0, 255).astype(np.uint8)
-    return Image.fromarray(img_np, mode="RGB")
-
-def _apply_gamma(img_np: np.ndarray, gamma: float) -> np.ndarray:
-    if gamma <= 0:
-        return img_np
-    # Normalize 0..1, power, back to 0..255
-    x = np.clip(img_np / 255.0, 0.0, 1.0)
-    y = np.power(x, 1.0 / gamma)
-    return (y * 255.0)
-
-def _apply_contrast(img_np: np.ndarray, contrast: float) -> np.ndarray:
-    # Contrast around 0.5 (127.5). contrast=1 leaves unchanged.
-    return np.clip((img_np - 127.5) * contrast + 127.5, 0, 255)
-
-def _gaussian_sigma_pixels(diopters: float, pupil_mm: float, px_per_mm: float) -> float:
+def _load_chart(max_width=1600):
     """
-    Heuristic mapping from defocus diopters and pupil size to Gaussian sigma in pixels.
-
-    - Larger |D| => more blur.
-    - Larger pupil => bigger blur circle.
+    Load the bundled Snellen chart and optionally limit width for performance.
     """
-    # Circle of confusion approx ∝ |D| * pupil_diameter. Sigma ~ coc_diameter / 2.355 (for Gaussian)
-    coc_mm = abs(diopters) * max(pupil_mm, 0.1) * 0.6  # 0.6 is a calibration factor
-    sigma_px = (coc_mm * px_per_mm) / 2.355
-    return float(max(sigma_px, 0.0))
+    img = Image.open(ASSET_PATH).convert("RGB")
+    if img.width > max_width:
+        h = int(img.height * (max_width / img.width))
+        img = img.resize((max_width, h), Image.BICUBIC)
+    return img
 
-def _blur_channel(ch: np.ndarray, sigma_px: float) -> np.ndarray:
-    if sigma_px <= 0.01:
-        return ch
-    # Kernel size: at least 3 and odd, ~ 6*sigma rule
-    k = int(max(3, 2 * int(3 * sigma_px) + 1))
-    return cv2.GaussianBlur(ch, (k, k), sigmaX=sigma_px, sigmaY=sigma_px, borderType=cv2.BORDER_REPLICATE)
+def _apply_contrast_gamma(img: Image.Image, contrast: float, gamma: float) -> Image.Image:
+    # contrast around 1.0 (0.5–1.5)
+    img = ImageOps.autocontrast(img, cutoff=0)  # normalize histogram lightly
+    enhancer = ImageOps.colorize(ImageOps.grayscale(img), black="black", white="white") if False else None
+    # Cheap contrast: convert to numpy, scale around 128
+    arr = np.asarray(img).astype(np.float32)
+    arr = (arr - 127.5) * contrast + 127.5
+    arr = np.clip(arr, 0, 255)
 
-# -----------------------------
-# Main simulation
-# -----------------------------
-def simulate_retina(
-    pil_img: Image.Image,
-    diopters: float = 0.0,         # positive = myopic blur for distance targets; negative = hyperopic
-    pupil_mm: float = 3.0,         # 2–6 mm typical
-    wavelength_nm: int | None = None,  # if None -> trichromatic (R,G,B); else simulate a single λ
-    contrast: float = 1.0,         # 0.5–1.2
-    gamma: float = 1.0             # 0.7–1.5
-) -> Image.Image:
+    # gamma correction
+    arr = np.power(arr / 255.0, 1.0 / max(1e-6, gamma)) * 255.0
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr)
+
+def _simulate_chromatic(img: Image.Image, shift_pix: float, mode: str) -> Image.Image:
     """
-    Physics-inspired defocus blur + simple chromatic model + contrast/gamma shaping.
+    Very lightweight chromatic aberration: shift R and B opposite directions.
+    mode:
+      - 'achromatic' -> no shift
+      - 'chromatic_rgb' -> simple R/B shift
     """
-    img = _to_numpy_rgb(pil_img).astype(np.float32)
+    if mode == "achromatic" or abs(shift_pix) < 0.25:
+        return img
 
-    # Estimate pixels-per-mm. If no DPI metadata, assume ~96 dpi (≈ 3.78 px/mm).
-    # You can refine this using a known on-screen size or chart scale.
-    px_per_mm = 3.78
+    r, g, b = img.split()
+    # shift by subpixel using affine transform (translate)
+    def shift(im, dx, dy):
+        return im.transform(
+            im.size,
+            Image.AFFINE,
+            (1, 0, dx, 0, 1, dy),
+            resample=Image.BICUBIC,
+        )
 
-    # Simple longitudinal chromatic aberration model: effective diopters shift with λ.
-    # Anchored near photopic peak ~555nm. About ~0.3D across ~100 nm is a reasonable ballpark.
-    def effective_diopters_for_lambda(D, lam_nm):
-        if lam_nm is None:
-            return D
-        delta = (555.0 - float(lam_nm)) * 0.003  # 100 nm => ~0.3D shift
-        return D + delta
+    r2 = shift(r, +shift_pix, 0)
+    b2 = shift(b, -shift_pix, 0)
+    return Image.merge("RGB", (r2, g, b2))
 
-    if wavelength_nm is None:
-        # Trichromatic: simulate R,G,B with slightly different effective diopters
-        # Representative wavelengths for display primaries (approx):
-        wl = {"R": 610, "G": 555, "B": 470}
-        channels = cv2.split(img)  # B, G, R order in OpenCV
-        Bc, Gc, Rc = channels
+def _defocus_sigma_pixels(defocus_D: float, pupil_mm: float, px_per_mm: float) -> float:
+    """
+    Map diopters & pupil to an approximate blur sigma in pixels.
+    This is a heuristic but monotonic and feels realistic enough for a demo:
+      - Larger |D| => more blur
+      - Larger pupil => more blur (depth of field shrinks)
+      - Higher pixels/mm => more pixels per physical blur
+    """
+    # Base scale tuned visually; keep conservative to avoid over-blur.
+    base = 0.18  # controls strength
+    sigma_mm = base * abs(defocus_D) * (pupil_mm / 3.0)  # mm of blur on the retina image plane
+    sigma_px = sigma_mm * px_per_mm
+    return max(0.0, sigma_px)
 
-        # Compute sigma per channel
-        D_R = effective_diopters_for_lambda(diopters, wl["R"])
-        D_G = effective_diopters_for_lambda(diopters, wl["G"])
-        D_B = effective_diopters_for_lambda(diopters, wl["B"])
+def _gaussian_blur(img: Image.Image, sigma_px: float) -> Image.Image:
+    if sigma_px <= 0.1:
+        return img
+    # Pillow uses radius ~ sigma; a bit larger feels closer to Gaussian sigma.
+    radius = float(sigma_px)
+    return img.filter(ImageFilter.GaussianBlur(radius=radius))
 
-        sig_R = _gaussian_sigma_pixels(D_R, pupil_mm, px_per_mm)
-        sig_G = _gaussian_sigma_pixels(D_G, pupil_mm, px_per_mm)
-        sig_B = _gaussian_sigma_pixels(D_B, pupil_mm, px_per_mm)
+def simulate_chart(
+    defocus_D: float = 0.0,
+    pupil_mm: float = 3.0,
+    px_per_mm: float = 4.0,
+    chromatic_mode: str = "achromatic",  # "achromatic" | "chromatic_rgb"
+    contrast: float = 1.0,
+    gamma: float = 1.0,
+):
+    """
+    Main entry: load the bundled chart, simulate optics/perception, return processed PIL image.
+    """
+    img = _load_chart()
 
-        Rb = _blur_channel(Rc, sig_R)
-        Gb = _blur_channel(Gc, sig_G)
-        Bb = _blur_channel(Bc, sig_B)
+    # 1) Defocus blur (approximate PSF)
+    sigma_px = _defocus_sigma_pixels(defocus_D, pupil_mm, px_per_mm)
+    img = _gaussian_blur(img, sigma_px)
 
-        img_blur = cv2.merge([Bb, Gb, Rb]).astype(np.float32)
-    else:
-        # Single wavelength: same blur applied to all channels (monochromatic blur)
-        D_eff = effective_diopters_for_lambda(diopters, wavelength_nm)
-        sigma_px = _gaussian_sigma_pixels(D_eff, pupil_mm, px_per_mm)
-        Bc, Gc, Rc = cv2.split(img)
-        Rb = _blur_channel(Rc, sigma_px)
-        Gb = _blur_channel(Gc, sigma_px)
-        Bb = _blur_channel(Bc, sigma_px)
-        img_blur = cv2.merge([Bb, Gb, Rb]).astype(np.float32)
+    # 2) Simple longitudinal chromatic aberration (R/B split) proportional to defocus & pupil
+    # small shift (pixels), bounded
+    chroma_shift = np.sign(defocus_D) * min(2.5, 0.15 * abs(defocus_D) * (pupil_mm / 3.0) * px_per_mm)
+    img = _simulate_chromatic(img, chroma_shift, chromatic_mode)
 
-    # Perceptual shaping
-    img_contrast = _apply_contrast(img_blur, float(contrast))
-    img_gamma = _apply_gamma(img_contrast, float(gamma))
+    # 3) Perceptual adjustments
+    img = _apply_contrast_gamma(img, contrast=contrast, gamma=gamma)
 
-    return _to_pil(img_gamma)
+    return img
 
-def pil_to_base64_png(pil_img: Image.Image) -> str:
+def simulate_chart_to_base64(**kwargs) -> str:
+    """
+    Convenience wrapper for views: returns base64-encoded PNG of processed chart.
+    """
+    out_img = simulate_chart(**kwargs)
     buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-    return f"data:image/png;base64,{b64}"
+    out_img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
