@@ -1,42 +1,42 @@
-// frontend/src/pages/LandingPage.jsx
+import React from "react";
 import { Link } from "react-router-dom";
 
 export default function LandingPage() {
   return (
-    <section className="relative">
-      <div className="container mx-auto px-4">
-        <div className="min-h-[calc(100vh-56px)] grid place-items-center">
-          <div className="max-w-3xl text-center">
-            <h1 className="font-extrabold tracking-tight leading-tight
-                           text-4xl sm:text-5xl lg:text-6xl">
-              Virtual Eye Test
-            </h1>
-            <p className="mt-4 text-neutral-300 text-base sm:text-lg">
-              Test your vision at home with scientifically informed optics
-              simulation. Accurate, accessible, and privacy-first.
-            </p>
+    <section className="min-h-[calc(100vh-56px)] flex items-center">
+      <div className="container-page grid lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-7">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
+            Virtual Eye Test
+          </h1>
+          <p className="mt-4 text-neutral-300 max-w-prose">
+            Test your vision at home using physics-based optics and perceptual simulation.
+            Get an intuitive, side-by-side chart that reacts to lens power, pupil size,
+            contrast and more.
+          </p>
+          <div className="mt-8 flex gap-3">
+            <Link to="/test" className="btn-primary">Get Started</Link>
+            <Link to="/instructions" className="btn-ghost">Read Instructions</Link>
+          </div>
+          <p className="mt-6 text-xs text-neutral-400 max-w-prose">
+            This prototype is for education and pre-screening only. It does not replace a
+            comprehensive eye exam by an optometrist/ophthalmologist.
+          </p>
+        </div>
 
-            <div className="mt-8 flex items-center justify-center gap-3">
-              <Link
-                to="/test"
-                className="inline-flex items-center rounded-md bg-blue-600 hover:bg-blue-700
-                           px-5 py-3 text-white font-medium"
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/instructions"
-                className="inline-flex items-center rounded-md border border-neutral-700
-                           hover:bg-neutral-800 px-5 py-3 text-neutral-100 font-medium"
-              >
-                Read Instructions
-              </Link>
+        <div className="lg:col-span-5">
+          <div className="card">
+            <div className="card-body">
+              <div className="w-full aspect-[4/5]">
+                <img
+                  src="/snellenchart.png"
+                  className="w-full h-full object-contain rounded"
+                  alt="Snellen chart"
+                  draggable={false}
+                />
+              </div>
+              <p className="caption mt-3">Sample Snellen chart used for calibration and testing.</p>
             </div>
-
-            <p className="mt-6 text-xs text-neutral-500">
-              Disclaimer: This is an informational tool, not a medical diagnosis.  
-              Please consult an eye-care professional for prescriptions or concerns.
-            </p>
           </div>
         </div>
       </div>
