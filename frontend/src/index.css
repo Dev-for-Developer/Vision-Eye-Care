@@ -1,28 +1,22 @@
-/* --- Tailwind core (must be first) --- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Base ---------- */
+/* ---------- Base (global) ---------- */
 @layer base {
   html, body, #root { height: 100%; }
   body { @apply bg-neutral-900 text-neutral-100 antialiased; }
-
-  /* Optional: consistent link color on dark bg */
-  a { @apply text-blue-400 hover:text-blue-300; }
 }
 
-/* ---------- Components (small design tokens) ---------- */
+/* ---------- Small design tokens used across pages ---------- */
 @layer components {
-  .container-page { @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8; }
+  /* page wrapper: centers content and gives comfortable gutters */
+  .container-page { @apply mx-auto max-w-[1280px] px-6 lg:px-8; }
 
+  /* reusable card shell */
   .card       { @apply bg-neutral-800/40 border border-neutral-700 rounded-xl; }
-  .card-body  { @apply p-4 sm:p-6; }
+  .card-body  { @apply p-6; }
+
+  /* section heading */
   .section-h  { @apply text-xl font-semibold; }
-
-  .btn        { @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors; }
-  .btn-primary{ @apply btn bg-blue-600 hover:bg-blue-500 text-white; }
-  .btn-ghost  { @apply btn border border-neutral-700 hover:bg-neutral-800; }
-
-  .caption    { @apply text-sm text-neutral-300; }
 }

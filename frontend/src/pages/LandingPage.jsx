@@ -1,45 +1,34 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Layout from "../components/Layout";
 
 export default function LandingPage() {
   return (
-    <section className="min-h-[calc(100vh-56px)] flex items-center">
-      <div className="container-page grid lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-7">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-            Virtual Eye Test
-          </h1>
-          <p className="mt-4 text-neutral-300 max-w-prose">
-            Test your vision at home using physics-based optics and perceptual simulation.
-            Get an intuitive, side-by-side chart that reacts to lens power, pupil size,
-            contrast and more.
-          </p>
-          <div className="mt-8 flex gap-3">
-            <Link to="/test" className="btn-primary">Get Started</Link>
-            <Link to="/instructions" className="btn-ghost">Read Instructions</Link>
-          </div>
-          <p className="mt-6 text-xs text-neutral-400 max-w-prose">
-            This prototype is for education and pre-screening only. It does not replace a
-            comprehensive eye exam by an optometrist/ophthalmologist.
-          </p>
+    <Layout>
+      <section className="flex flex-col items-center justify-center text-center min-h-[70vh]">
+        <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">
+          Virtual Eye Test
+        </h1>
+        <p className="max-w-2xl text-neutral-300 mb-8">
+          Test your vision online from the comfort of your home. Our
+          physics-aware simulator shows how your vision changes with lens
+          power, pupil size, and more.
+        </p>
+        <div className="flex gap-3">
+          <Link
+            to="/test"
+            className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors"
+          >
+            Get Started
+          </Link>
+          <Link
+            to="/instructions"
+            className="px-5 py-3 rounded-lg border border-neutral-700 hover:bg-neutral-800 transition-colors"
+          >
+            Read Instructions
+          </Link>
         </div>
-
-        <div className="lg:col-span-5">
-          <div className="card">
-            <div className="card-body">
-              <div className="w-full aspect-[4/5]">
-                <img
-                  src="/snellenchart.png"
-                  className="w-full h-full object-contain rounded"
-                  alt="Snellen chart"
-                  draggable={false}
-                />
-              </div>
-              <p className="caption mt-3">Sample Snellen chart used for calibration and testing.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
+    </Layout>
   );
 }

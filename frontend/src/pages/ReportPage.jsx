@@ -1,9 +1,14 @@
-import React from 'react'
+import React from "react";
+import Layout from "../components/Layout";
 
 export default function ReportPage() {
   return (
-    <div className="flex items-center justify-center h-screen bg-green-100">
-      <h1 className="text-3xl font-bold text-gray-800">[📄 Final Report UI Coming Soon]</h1>
-    </div>
-  )
+    <Layout>
+      <section className="min-h-[50vh] grid place-items-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-3">Report</h1>
+        </div>
+      </section>
+    </Layout>
+  );
 }
