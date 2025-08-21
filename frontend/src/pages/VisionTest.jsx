@@ -1,29 +1,26 @@
 // frontend/src/pages/VisionTest.jsx
 import React, { useState } from "react";
 
-const API_BASE = "http://localhost:8000/api"; // adjust if needed
+const API_BASE = "http://localhost:8000/api";
 
 export default function VisionTest() {
-  // Original chart is always present (bundled in /public)
   const originalUrl = "/snellenchart.png";
 
-  // Controls
-  const [defocusD, setDefocusD] = useState(0.0);          // -6..+6
-  const [pupil, setPupil] = useState(3.0);                // 2..7 mm
-  const [pxPerMm, setPxPerMm] = useState(4.0);            // 2..8
-  const [chromatic, setChromatic] = useState("achromatic"); // or "chromatic_rgb"
-  const [contrast, setContrast] = useState(1.0);          // 0.6..1.5
-  const [gamma, setGamma] = useState(1.0);                // 0.8..1.4
+  const [defocusD, setDefocusD] = useState(0.0);
+  const [pupil, setPupil] = useState(3.0);
+  const [pxPerMm, setPxPerMm] = useState(4.0);
+  const [chromatic, setChromatic] = useState("achromatic");
+  const [contrast, setContrast] = useState(1.0);
+  const [gamma, setGamma] = useState(1.0);
 
   const [loading, setLoading] = useState(false);
   const [processedUrl, setProcessedUrl] = useState(null);
   const [error, setError] = useState("");
 
-  const runSimulation = async () => {
+  async function runSimulation() {
     setLoading(true);
     setError("");
     setProcessedUrl(null);
-
     try {
       const res = await fetch(`${API_BASE}/simulate/`, {
         method: "POST",
@@ -37,191 +34,136 @@ export default function VisionTest() {
           gamma,
         }),
       });
-
-      // Try to parse JSON either way
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Invalid server response (not JSON).");
-      }
-
-      if (!res.ok || (data.status && data.status !== "ok")) {
+      const data = await res.json();
+      if (!res.ok || (data.status && data.status !== "ok"))
         throw new Error(data.message || "Server error");
-      }
-
-      // Accept both possible keys from backend: image_base64 OR image
-      const b64 =
-        data.image_base64 ||
-        data.image ||
-        data.processed_base64 ||
-        null;
-
-      if (!b64 || typeof b64 !== "string" || b64.length < 100) {
-        throw new Error("Received empty/invalid image from server.");
-      }
-
+      const b64 = data.image_base64 || data.image || data.processed_base64;
+      if (!b64 || b64.length < 64)
+        throw new Error("Received invalid image from server");
       setProcessedUrl(`data:image/png;base64,${b64}`);
     } catch (e) {
       setError(e.message || "Simulation failed");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-neutral-900 text-neutral-100 px-6 py-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-6">Virtual Eye Test — Phase 2</h1>
+    <section className="py-8">
+      <div className="container mx-auto px-4">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-6">Virtual Eye Test — Phase 2</h1>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Controls */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Optics</h2>
+        {/* 2-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-8">
+          {/* LEFT: Controls (sticky card) */}
+          <aside className="lg:sticky lg:top-20 h-fit">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-5">
+              <h2 className="text-lg font-semibold mb-4">Optics</h2>
 
-            <div>
-              <label className="block text-sm mb-1">
-                Defocus (Diopters): {defocusD.toFixed(2)} D
-              </label>
-              <input
-                type="range"
-                min={-6}
-                max={6}
-                step={0.25}
-                value={defocusD}
-                onChange={(e) => setDefocusD(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
+              <Label text={`Defocus (Diopters): ${defocusD.toFixed(2)} D`} />
+              <Range min={-6} max={6} step={0.25} value={defocusD} onChange={setDefocusD} />
 
-            <div>
-              <label className="block text-sm mb-1">
-                Pupil size: {pupil.toFixed(2)} mm
-              </label>
-              <input
-                type="range"
-                min={2}
-                max={7}
-                step={0.1}
-                value={pupil}
-                onChange={(e) => setPupil(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
+              <Label text={`Pupil size: ${pupil.toFixed(2)} mm`} />
+              <Range min={2} max={7} step={0.1} value={pupil} onChange={setPupil} />
 
-            <div>
-              <label className="block text-sm mb-1">
-                Pixels per mm (screen): {pxPerMm.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min={2}
-                max={8}
-                step={0.1}
-                value={pxPerMm}
-                onChange={(e) => setPxPerMm(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
+              <Label text={`Pixels per mm (screen): ${pxPerMm.toFixed(2)}`} />
+              <Range min={2} max={8} step={0.1} value={pxPerMm} onChange={setPxPerMm} />
 
-            <div>
-              <label className="block text-sm mb-1">Chromatic mode</label>
-              <select
-                value={chromatic}
-                onChange={(e) => setChromatic(e.target.value)}
-                className="bg-neutral-800 border border-neutral-700 px-2 py-1 rounded"
+              <div className="mt-3">
+                <label className="block text-sm text-neutral-300 mb-1">Chromatic mode</label>
+                <select
+                  value={chromatic}
+                  onChange={(e) => setChromatic(e.target.value)}
+                  className="w-full bg-neutral-800 border border-neutral-700 px-3 py-2 rounded-md"
+                >
+                  <option value="achromatic">Achromatic (RGB together)</option>
+                  <option value="chromatic_rgb">Chromatic (R/B split)</option>
+                </select>
+              </div>
+
+              <h2 className="text-lg font-semibold mt-6 mb-2">Perceptual</h2>
+
+              <Label text={`Contrast: ${contrast.toFixed(2)}×`} />
+              <Range min={0.6} max={1.5} step={0.05} value={contrast} onChange={setContrast} />
+
+              <Label text={`Gamma: ${gamma.toFixed(2)}`} />
+              <Range min={0.8} max={1.4} step={0.02} value={gamma} onChange={setGamma} />
+
+              <button
+                onClick={runSimulation}
+                disabled={loading}
+                className="mt-4 w-full inline-flex items-center justify-center px-4 py-2 rounded-md
+                           bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
               >
-                <option value="achromatic">Achromatic (RGB together)</option>
-                <option value="chromatic_rgb">Chromatic (R/B split)</option>
-              </select>
+                {loading ? "Processing…" : "Run Simulation"}
+              </button>
+
+              {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
             </div>
+          </aside>
 
-            <h2 className="text-xl font-semibold pt-4">Perceptual</h2>
+          {/* RIGHT: Side-by-side charts */}
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5">
+            <h2 className="text-lg font-semibold mb-4 text-center">Chart Comparison</h2>
 
-            <div>
-              <label className="block text-sm mb-1">
-                Contrast: {contrast.toFixed(2)}×
-              </label>
-              <input
-                type="range"
-                min={0.6}
-                max={1.5}
-                step={0.05}
-                value={contrast}
-                onChange={(e) => setContrast(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1">
-                Gamma: {gamma.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min={0.8}
-                max={1.4}
-                step={0.02}
-                value={gamma}
-                onChange={(e) => setGamma(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
-
-            <button
-              onClick={runSimulation}
-              disabled={loading}
-              className="mt-2 inline-flex items-center px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
-            >
-              {loading ? "Processing…" : "Run Simulation"}
-            </button>
-
-            {error && (
-              <p className="text-red-400 text-sm mt-2">Error: {error}</p>
-            )}
-          </div>
-
-          {/* Side-by-side images */}
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Original</h3>
-                <div className="aspect-[4/5] bg-neutral-800 rounded overflow-hidden">
+            {/* Force 2 columns always */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Original */}
+              <figure className="text-center">
+                <figcaption className="text-sm font-medium mb-2">Original</figcaption>
+                <div className="bg-neutral-800 rounded-lg overflow-hidden">
                   <img
                     src={originalUrl}
                     alt="Original Snellen Chart"
-                    className="w-full h-full object-contain"
+                    className="w-full max-h-[70vh] object-contain"
                     draggable={false}
                   />
                 </div>
-              </div>
+              </figure>
 
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Processed</h3>
-                <div className="aspect-[4/5] bg-neutral-800 rounded overflow-hidden flex items-center justify-center">
+              {/* Processed */}
+              <figure className="text-center">
+                <figcaption className="text-sm font-medium mb-2">Processed</figcaption>
+                <div className="bg-neutral-800 rounded-lg overflow-hidden grid place-items-center">
                   {processedUrl ? (
                     <img
                       src={processedUrl}
                       alt="Processed Simulation"
-                      className="w-full h-full object-contain"
+                      className="w-full max-h-[70vh] object-contain"
                       draggable={false}
                     />
                   ) : (
                     <p className="text-neutral-400 text-sm px-3 text-center">
-                      Adjust controls and click <b>Run Simulation</b> to see the
-                      simulated retina image here.
+                      Adjust controls and click <b>Run Simulation</b>.
                     </p>
                   )}
                 </div>
-              </div>
+              </figure>
             </div>
+
+            <p className="text-xs text-neutral-400 mt-4 text-center">
+              Letters are scaled by your device pixels/mm setting to keep geometry coherent.
+            </p>
           </div>
         </div>
-
-        <p className="text-xs text-neutral-400">
-          Letters are scaled by your device pixels/mm setting to keep geometry coherent.
-        </p>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function Label({ text }) {
+  return <label className="block text-sm text-neutral-300 mt-3 mb-1">{text}</label>;
+}
+function Range({ min, max, step, value, onChange }) {
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      className="w-full"
+    />
   );
 }
