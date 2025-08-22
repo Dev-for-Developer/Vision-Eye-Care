@@ -1,14 +1,13 @@
-import React from "react";
-import Layout from "../components/Layout";
-
 export default function ReportPage() {
   return (
-    <Layout>
-      <section className="min-h-[50vh] grid place-items-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-3">Report</h1>
-        </div>
-      </section>
-    </Layout>
+    <section className="py-10">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-6">Report</h1>
+        <p className="text-neutral-300">
+          (Coming soon) Generate a PDF including your simulation settings, results,
+          and basic profile information.
+        </p>
+      </div>
+    </section>
   );
 }
