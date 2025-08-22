@@ -209,3 +209,7 @@ __marimo__/
 backend/credentials/firebase-service-account.json
 backend/credentials/*.json
 *.secret.json
+backend/credentials/
+*.secret.json
+*.service-account.json
+backend/credentials/*.json
